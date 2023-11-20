@@ -17,7 +17,27 @@ in your vault called `vault_kopia_repository_token`.
 Role Variables
 --------------
 
-A description of the settable variables for this role should go here, including any variables that are in defaults/main.yml, vars/main.yml, and any variables that can/should be set via parameters to the role. Any variables that are read from other roles and/or the global scope (ie. hostvars, group vars, etc.) should be mentioned here as well.
+### Vault variables
+- vault_kopia_b2_bucket
+- vault_kopia_b2_password
+- vault_kopia_b2_application_id
+- vault_kopia_b2_access_key
+- vault_kopia_repository_token
+
+### Regular variables
+- install_ui - default:false
+- kopia_user - default: "root"
+- kopia_group - default: "root"
+- kopia_config_user - default: "{{ kopia_user}}"
+- kopia_config_group - default:  "{{ kopia_group }}"
+- kopia_config_path - default: "/{{ kopia_user }}/.config/kopia"
+- kopia_cache_root - default: /{{ kopia_user }}/.cache
+- kopia_backup_sources - default: /home/mtm
+- kopia_backup_retention_hourly - default: 6
+- kopia_backup_retention_daily - default:  7
+- kopia_backup_retention_weekly - default:  5
+- kopia_backup_retention_monthly - default: 12
+- kopia_backup_retention_annual - default: 1
 
 Dependencies
 ------------
