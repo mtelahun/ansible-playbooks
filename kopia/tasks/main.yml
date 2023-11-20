@@ -1,0 +1,142 @@
+---
+# tasks file for kopia
+- name: Install kopia signing key
+  apt_key:
+    url: https://kopia.io/signing-key
+
+- name: Add kopia apt repository
+  apt_repository:
+    repo: "deb http://packages.kopia.io/apt/ stable main"
+
+- name: Install kopia and fuse
+  apt:
+    pkg:
+      - fuse
+      - kopia
+    state: present
+    update_cache: true
+
+- name: Install kopia UI
+  apt:
+    pkg:
+      - kopia-u
+    state: present
+  when: install_ui
+
+# - name: Ensure the kopia config directory exists
+#   file:
+#     dest: "{{ kopia_config_path }}"
+#     state: directory
+#     owner: "{{ kopia_user }}"
+#     group: "{{ kopia_group }}"
+#     mode: 0740
+
+# - name: Create the Kopia configuration file(s) for s3 destinations
+#   template:
+#     src: kopia.b2.config.j2
+#     dest: "{{ item.config }}"
+#     owner: "{{ kopia_user }}"
+#     group: "{{ kopia_group }}"
+#     mode: 0640
+#   loop: "{{ kopia_backup_b2_destinations }}"
+#   no_log: false
+#   loop_control:
+#     label: "{{ item.name }}"
+
+- name: Create B2 Kopia repositories
+  become_user: "{{ kopia_user }}"
+  shell: |
+    if {{ item.precondition }}; then
+      kopia repository create b2 --description="{{item.description}}" --bucket="{{item.bucket}}" --key-id="{{item.accesskey}}" --key="{{item.secretkey}}"
+    fi
+  loop: "{{kopia_backup_b2_destinations}}"
+  environment:
+    KOPIA_PASSWORD: "{{item.password}}"
+    KOPIA_CONFIG_PATH: "{{item.config}}"
+  no_log: false
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Set Kopia global retention policies for all B2 backup(s)
+  become_user: "{{ kopia_user }}"
+  shell: |
+    if {{ item.precondition }}; then
+      kopia policy set --global --config-file={{item.config}} --compression pgzip 
+      kopia policy set --global --config-file={{item.config}} --add-dot-ignore .kopiaignore 
+      kopia policy set --global --config-file={{item.config}} --keep-hourly {{kopia_backup_retention_hourly}} 
+      kopia policy set --global --config-file={{item.config}} --keep-daily {{kopia_backup_retention_daily}} 
+      kopia policy set --global --config-file={{item.config}} --keep-weekly {{kopia_backup_retention_weekly}} 
+      kopia policy set --global --config-file={{item.config}} --keep-monthly {{kopia_backup_retention_monthly}} 
+      kopia policy set --global --config-file={{item.config}} --keep-annual {{kopia_backup_retention_annual}} 
+    fi
+  loop: "{{kopia_backup_b2_destinations}}"
+  environment:
+    KOPIA_PASSWORD: "{{item.password}}"
+  no_log: false
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Add Kopia global ignore policies for all B2 backups
+  become_user: "{{ kopia_user }}"
+  shell: |
+    if {{ item.0.precondition }}; then
+      kopia policy set --global --config-file={{item.0.config}} --add-ignore {{item.1}} 
+    fi
+  loop: "{{ kopia_backup_b2_destinations|product(kopia_backup_excludes)|list }}"
+  environment:
+    KOPIA_PASSWORD: "{{item.0.password}}"
+  no_log: true
+  loop_control:
+    label: "{{ item.0.name }}"
+
+- name: Register and snapshot backup source(s) for all B2 kopia backup(s)
+  become_user: "{{ kopia_user }}"
+  shell: |
+    if {{ item.0.precondition }}; then
+      kopia snapshot create --parallel {{ cpu_count }} --config-file={{item.0.config}} {{item.1}} 
+    fi
+  loop: "{{ kopia_backup_b2_destinations|product(kopia_backup_sources)|list }}"
+  environment:
+    KOPIA_PASSWORD: "{{item.0.password}}"
+  no_log: true
+  loop_control:
+    label: "{{ item.0.name }}"
+
+- name: Create the kopia backup with B2 execution script
+  template:
+    src: kopia.b2.bash.j2
+    dest: "{{ kopia_service_b2_script_file }}"
+    owner: "{{ kopia_user }}"
+    group: "{{ kopia_group }}"
+    mode: 0740
+
+- name: Create kopia service files and timer files
+  template:
+    src: "{{ item }}"
+    dest: "/etc/systemd/system/{{ item | replace('.j2', '') }}"
+    owner: "{{ kopia_user }}"
+    group: "{{ kopia_group }}"
+    mode: 0640
+  loop:
+    - kopia.service.j2
+    - kopia.timer.j2
+
+- name: Reload systemctl daemon
+  ansible.builtin.systemd:
+    daemon_reexec: yes
+
+- name: Enable (without starting) kopia services
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    enabled: yes
+  loop:
+    - kopia.service
+
+- name: Enable and start kopia timers
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    enabled: yes
+    state: started
+    no_block: yes
+  loop:
+    - kopia.timer

@@ -1,0 +1,33 @@
+---
+# defaults file for kopia
+install_ui: false
+kopia_user: "root"
+kopia_group: "root"
+kopia_b2_bucket: "{{ vault_kopia_b2_bucket }}"
+kopia_b2_password: "{{ vault_kopia_b2_password }}"
+kopia_b2_application_id: "{{ vault_kopia_b2_application_id }}"
+kopia_b2_access_key: "{{ vault_kopia_b2_access_key }}"
+
+# Kopia configuration path and related variables
+kopia_config_user: "{{ kopia_user}}"
+kopia_config_group: "{{ kopia_group }}"
+kopia_config_path: "/{{ kopia_user }}/.config/kopia"
+kopia_cache_root: /{{ kopia_user }}/.cache
+
+# Backup source paths
+kopia_backup_sources:
+  - /home/mtm
+
+# Retention policies
+kopia_backup_retention_hourly: 6
+kopia_backup_retention_daily:  7
+kopia_backup_retention_weekly:  5
+kopia_backup_retention_monthly: 12
+kopia_backup_retention_annual: 1
+
+# Shell script that runs the backup snapshot
+kopia_service_b2_script_file: /root/kopia.script
+
+# number of parallel workers during snapshoting. Set this to
+# the number of cpu threads available, as reported by your system.
+cpu_count: 8

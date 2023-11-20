@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+
+# Prevent multiple simultaneous executions
+[ "${FLOCKER}" != "`realpath '$0'`" ] && exec env FLOCKER="`realpath '$0'`" flock -en "$0" "$0" "$@" || :
+
+{% for destination in kopia_backup_b2_destinations %}
+
+if {{ destination.precondition }}; then
+    /usr/bin/kopia snapshot create --parallel {{ cpu_count }} --all --config-file={{destination.config}}
+fi
+
+{% endfor %}

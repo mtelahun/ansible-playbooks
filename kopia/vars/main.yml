@@ -1,0 +1,30 @@
+---
+# vars file for kopia
+
+# Backup S3 destinations
+kopia_backup_b2_destinations:
+  - name: backblaze
+    description: Cloud backup to Backblaze
+    type: b2
+    cache: "{{ kopia_cache_root }}/backup.kopia.backblaze"
+    bucket: "{{ kopia_b2_bucket }}"
+    accesskey: "{{ kopia_b2_application_id }}"
+    secretkey: "{{ kopia_b2_access_key }}"
+    config: "{{ kopia_config_path }}/repository.config"
+    password: "{{ kopia_b2_password }}"
+    precondition: "true"
+
+# Backup exclusion list
+kopia_backup_excludes:
+  - "node_modules/"
+  - ".trash/"
+  - ".dtrash/"
+  - "*.cache"
+  - "*.backup"
+  - "*.bak"
+  - "*.orig"
+  - ".bash_history"
+  - ".netrc"
+  - ".atom-socket*"
+  - "snap/*/.cache/*"
+  - "snap/*/.pub-cache/*"

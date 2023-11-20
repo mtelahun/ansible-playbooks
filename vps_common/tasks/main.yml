@@ -1,0 +1,81 @@
+---
+# tasks file for vps_common
+- name: Install aptitude
+  apt:
+    name: aptitude
+    state: latest
+    update_cache: true
+
+- name: Setup passwordless sudo
+  lineinfile:
+    path: /etc/sudoers
+    state: present
+    regexp: '^%sudo'
+    line: '%sudo ALL=(ALL) NOPASSWD: ALL'
+    validate: '/usr/sbin/visudo -cf %s' 
+
+- name: Create a new regular user with sudo privileges
+  user:
+    name: "{{ primary_user }}"
+    state: present
+    groups: sudo
+    append: true
+    create_home: true
+
+- name: Set authorized SSH key for new user
+  ansible.posix.authorized_key:
+    user: "{{ primary_user }}"
+    state: present
+    key: "{{ lookup('file', lookup('env','HOME') + '/.ssh/rogue_id_rsa.pub') }}"
+
+- name: Disable password authentication for root
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    state: present
+    regexp: '^#?PermitRootLogin'
+    line: 'PermitRootLogin prohibit-password'
+
+- name: Update package cache and install basic programs and utilities
+  apt:
+    pkg:
+      - apt-transport-https
+      - ca-certificates
+      - build-essential
+      - software-properties-common
+      - curl
+      - python3
+      - python3-pip
+      - virtualenv
+      - python3-setuptools
+      - tmux
+      - git
+      - ufw
+    state: latest
+    update_cache: true
+
+- name: Install pipx
+  ansible.builtin.pip:
+    name: pipx
+    state: latest
+
+- name: UFW - Allow SSH connections
+  community.general.ufw:
+    rule: allow
+    name: OpenSSH
+
+- name: UFW - Allow Http,Https connections
+  community.general.ufw:
+    rule: allow
+    proto: tcp
+    port: 80,443
+
+- name: UFW - Allow Nginx Proxy Manager
+  community.general.ufw:
+    rule: allow
+    proto: tcp
+    port: '81'
+
+- name: UFW - Enable and deny by default
+  community.general.ufw:
+    state: enabled
+    default: deny

@@ -1,0 +1,7 @@
+---
+- hosts: vps
+  become: true
+  roles:
+#    - vps_common
+#    - docker
+    - kopia
