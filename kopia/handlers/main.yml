@@ -1,2 +1,5 @@
 ---
 # handlers file for kopia
+- name: Reload systemctl daemon
+  ansible.builtin.systemd:
+    daemon_reexec: yes

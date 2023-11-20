@@ -12,6 +12,7 @@ kopia_backup_b2_destinations:
     secretkey: "{{ kopia_b2_access_key }}"
     config: "{{ kopia_config_path }}/repository.config"
     password: "{{ kopia_b2_password }}"
+    repository_token: "{{ kopia_repository_token }}"
     precondition: "true"
 
 # Backup exclusion list

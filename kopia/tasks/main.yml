@@ -23,39 +23,40 @@
     state: present
   when: install_ui
 
-# - name: Ensure the kopia config directory exists
-#   file:
-#     dest: "{{ kopia_config_path }}"
-#     state: directory
-#     owner: "{{ kopia_user }}"
-#     group: "{{ kopia_group }}"
-#     mode: 0740
+- name: Ensure the kopia config directory exists
+  file:
+    dest: "{{ kopia_config_path }}"
+    state: directory
+    owner: "{{ kopia_user }}"
+    group: "{{ kopia_group }}"
+    mode: 0740
 
-# - name: Create the Kopia configuration file(s) for s3 destinations
-#   template:
-#     src: kopia.b2.config.j2
-#     dest: "{{ item.config }}"
-#     owner: "{{ kopia_user }}"
-#     group: "{{ kopia_group }}"
-#     mode: 0640
-#   loop: "{{ kopia_backup_b2_destinations }}"
-#   no_log: false
-#   loop_control:
-#     label: "{{ item.name }}"
-
-- name: Create B2 Kopia repositories
-  become_user: "{{ kopia_user }}"
-  shell: |
-    if {{ item.precondition }}; then
-      kopia repository create b2 --description="{{item.description}}" --bucket="{{item.bucket}}" --key-id="{{item.accesskey}}" --key="{{item.secretkey}}"
-    fi
-  loop: "{{kopia_backup_b2_destinations}}"
-  environment:
-    KOPIA_PASSWORD: "{{item.password}}"
-    KOPIA_CONFIG_PATH: "{{item.config}}"
-  no_log: false
+- name: Create the Kopia configuration file(s) for B2 destinations
+  template:
+    src: kopia.b2.config.j2
+    dest: "{{ item.config }}"
+    owner: "{{ kopia_user }}"
+    group: "{{ kopia_group }}"
+    mode: 0640
+  loop: "{{ kopia_backup_b2_destinations }}"
+  no_log: true
   loop_control:
     label: "{{ item.name }}"
+  vars:
+    this_host: "{{ inventory_hostname }}"
+
+- name: Connect to B2 kopia repositories
+  become_user: "{{ kopia_user }}"
+  shell: |
+    if {{ item.0.precondition }}; then
+      kopia repository connect from-config --file={{item.0.config}} --token {{ item.0.repository_token }}
+    fi
+  loop: "{{ kopia_backup_b2_destinations|product(kopia_backup_sources)|list }}"
+  environment:
+    KOPIA_PASSWORD: "{{item.0.password}}"
+  no_log: true
+  loop_control:
+    label: "{{ item.0.name }}"
 
 - name: Set Kopia global retention policies for all B2 backup(s)
   become_user: "{{ kopia_user }}"
@@ -72,7 +73,7 @@
   loop: "{{kopia_backup_b2_destinations}}"
   environment:
     KOPIA_PASSWORD: "{{item.password}}"
-  no_log: false
+  no_log: true
   loop_control:
     label: "{{ item.name }}"
 
@@ -89,7 +90,7 @@
   loop_control:
     label: "{{ item.0.name }}"
 
-- name: Register and snapshot backup source(s) for all B2 kopia backup(s)
+- name: Snapshot backup source(s) for all B2 kopia backup(s)
   become_user: "{{ kopia_user }}"
   shell: |
     if {{ item.0.precondition }}; then
@@ -120,10 +121,8 @@
   loop:
     - kopia.service.j2
     - kopia.timer.j2
-
-- name: Reload systemctl daemon
-  ansible.builtin.systemd:
-    daemon_reexec: yes
+  notify:
+    - Reload systemctl daemon
 
 - name: Enable (without starting) kopia services
   ansible.builtin.systemd:

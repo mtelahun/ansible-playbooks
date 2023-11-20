@@ -7,6 +7,7 @@ kopia_b2_bucket: "{{ vault_kopia_b2_bucket }}"
 kopia_b2_password: "{{ vault_kopia_b2_password }}"
 kopia_b2_application_id: "{{ vault_kopia_b2_application_id }}"
 kopia_b2_access_key: "{{ vault_kopia_b2_access_key }}"
+kopia_repository_token: "{{ vault_kopia_repository_token }}"
 
 # Kopia configuration path and related variables
 kopia_config_user: "{{ kopia_user}}"
